@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-5">
+
+  <h2 class="mb-4">Scan Dashboard - {{ scan_target }}</h2>
+
+  <!-- Summary Cards -->
+  <div class="row mb-4">
+    {% for key, value in scan_summary.items() %}
+      <div class="col-md-3 mb-3">
+        <div class="card bg-dark text-light shadow-sm p-3">
+          <h5>{{ key.replace('_',' ').title() }}</h5>
+          <p class="display-6">{{ value }}</p>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Per-port Table -->
+  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+    <h5>Port Details</h5>
+    <table class="table table-dark table-striped table-hover">
+      <thead>
+        <tr>
+          <th>Port</th>
+          <th>Protocol</th>
+          <th>Service</th>
+          <th>Status</th>
+          <th>Severity</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for port in scan_ports %}
+        <tr>
+          <td>{{ port.number }}</td>
+          <td>{{ port.protocol }}</td>
+          <td>{{ port.service }}</td>
+          <td>{{ port.status }}</td>
+          <td class="sev-{{ port.severity|lower }}">{{ port.severity }}</td>
+          <td>{{ port.notes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Charts -->
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card bg-dark text-light shadow-sm p-3 chart-card">
+        <h5>Open Ports by Severity</h5>
+        <canvas id="openPortsChart"></canvas>
+      </div>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card bg-dark text-light shadow-sm p-3 chart-card">
+        <h5>Service Distribution</h5>
+        <canvas id="serviceChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const openPortsData = {
+    labels: ["Critical","High","Medium","Low"],
+    datasets:[{ label:'Ports', data:[{{ scan_summary.critical }}, {{ scan_summary.high }}, {{ scan_summary.medium }}, {{ scan_summary.low }}], backgroundColor:['#ef4444','#f97316','#eab308','#22c55e']}]
+};
+new Chart(document.getElementById('openPortsChart'), { type:'bar', data:openPortsData, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ color:'#e2e8f0' } }, x:{ ticks:{ color:'#e2e8f0' } } }, plugins:{ legend:{ labels:{ color:'#e2e8f0' } } } } });
+
+const serviceData = {
+    labels: [{% for s in service_dist.keys() %}"{{ s }}",{% endfor %}],
+    datasets:[{ data:[{% for s in service_dist.values() %}{{ s }},{% endfor %}], backgroundColor:['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444']}]
+};
+new Chart(document.getElementById('serviceChart'), { type:'pie', data:serviceData, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#e2e8f0', boxWidth:20, padding:15 } } } } });
+</script>
+{% endblock %}

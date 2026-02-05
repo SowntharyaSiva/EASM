@@ -1,0 +1,49 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+.card {
+    border-radius: 10px;
+}
+
+.card-title, h5 {
+    font-weight: bold;
+}
+
+.chart-card {
+    height: 350px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+}
+
+.chart-card canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.table-dark th, .table-dark td {
+    border-color: #334155;
+}
+
+.table-dark thead {
+    background-color: #1e293b;
+}
+
+.table-dark tbody tr:nth-child(even) {
+    background-color: #1c2733;
+}
+
+.risk-high, .sev-critical { color: #ef4444; font-weight:bold; }
+.risk-medium, .sev-high { color: #f97316; font-weight:bold; }
+.risk-low, .sev-medium { color: #eab308; font-weight:bold; }
+.sev-low { color: #22c55e; font-weight:bold; }
+
+.card p.display-6 {
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+}
