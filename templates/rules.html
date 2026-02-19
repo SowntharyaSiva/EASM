@@ -1,58 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container my-5">
-
-  <h2 class="mb-4">Rules & Risk Model</h2>
-
-  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
-    <h5>Rule Table</h5>
-    <table class="table table-dark table-striped table-hover">
-      <thead>
-        <tr>
-          <th>Category</th>
-          <th>Issue</th>
-          <th>Severity</th>
-          <th>Weight</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in findings %}
-        <tr>
-          <td>{{ f.category }}</td>
-          <td>{{ f.issue }}</td>
-          <td class="sev-{{ f.severity|lower }}">{{ f.severity }}</td>
-          <td>{{ f.weight }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="row">
-    <div class="col-md-6 mb-4">
-      <div class="card bg-dark text-light shadow-sm p-3 chart-card">
-        <h5>Risk Weight by Category</h5>
-        <canvas id="riskChart"></canvas>
-      </div>
-    </div>
-    <div class="col-md-6 mb-4">
-      <div class="card bg-dark text-light shadow-sm p-3 chart-card">
-        <h5>Severity Distribution</h5>
-        <canvas id="severityChart"></canvas>
-      </div>
-    </div>
-  </div>
+<div class="container mt-5">
+  <h2>Risk Scoring Rules</h2>
+  <table class="table table-dark">
+    <thead>
+      <tr>
+        <th>ID</th><th>Name</th><th>Severity</th><th>Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rules %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.severity }}</td>
+        <td>{{ r.score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
-
-<script>
-const riskData = {
-    labels: [{% for f in findings %}"{{ f.category }}",{% endfor %}],
-    datasets: [{ label:'Risk Weight', data:[{% for f in findings %}{{ f.weight }},{% endfor %}], backgroundColor:'rgba(59,130,246,0.7)' }]
-};
-new Chart(document.getElementById('riskChart'), { type:'bar', data:riskData, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{ color:'#e2e8f0', maxRotation:45, minRotation:30 }, grid:{ color:'#334155'} }, y:{ ticks:{ color:'#e2e8f0' }, grid:{ color:'#334155' }, beginAtZero:true } }, plugins:{ legend:{ labels:{ color:'#e2e8f0' } } } } });
-
-const severityCounts = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0};
-{% for f in findings %} severityCounts["{{ f.severity }}"]++; {% endfor %}
-new Chart(document.getElementById('severityChart'), { type:'pie', data:{ labels:Object.keys(severityCounts), datasets:[{ data:Object.values(severityCounts), backgroundColor:['#ef4444','#f97316','#eab308','#22c55e'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#e2e8f0', boxWidth:20, padding:15 } } } } });
-</script>
 {% endblock %}

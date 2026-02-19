@@ -4,7 +4,9 @@ def scan_ports(target):
     nm = nmap.PortScanner()
 
     try:
-        nm.scan(hosts=target, ports="1-1024", arguments="-T4")
+        #nm.scan(hosts=target, ports="1-1024", arguments="-T4")
+        nm.scan(hosts=target, ports="22,80,443,8080", arguments="-T4")
+
     except Exception as e:
         print(f"Error scanning {target}: {e}")
         return [], {}

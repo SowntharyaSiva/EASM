@@ -61,6 +61,156 @@
     </div>
   </div>
 
+  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+    <h5>DNS Exposure Analysis</h5>
+
+    <ul>
+      <li>
+        <b>Web Servers (A Records):</b> {{ dns.A|length }}
+        {% if dns.A|length > 0 %}
+          — Public servers are identifiable → attackers can target hosting infrastructure.
+        {% else %}
+          — No A records found.
+        {% endif %}
+      </li>
+
+      <li>
+        <b>Mail Servers (MX Records):</b> {{ dns.MX|length }}
+        {% if dns.MX|length > 0 %}
+          — Email infrastructure visible → phishing & spam attack surface.
+        {% else %}
+          — No mail servers publicly exposed.
+        {% endif %}
+      </li>
+
+      <li>
+        <b>Name Servers (NS Records):</b> {{ dns.NS|length }}
+        {% if dns.NS|length > 0 %}
+          — DNS infrastructure exposed → helps attackers map network.
+        {% else %}
+          — No NS records retrieved.
+        {% endif %}
+      </li>
+    </ul>
+
+    <hr>
+
+    <h6>Email Security Protection</h6>
+
+    <p>
+      <b>SPF Record:</b>
+      {% if dns.email_security.spf %}
+        <span class="text-success">Present</span> — Domain restricts who can send emails (reduces spoofing).
+      {% else %}
+        <span class="text-danger">Missing</span> — Attackers can forge emails from this domain.
+      {% endif %}
+    </p>
+
+    <p>
+      <b>DMARC Policy:</b>
+      {% if dns.email_security.dmarc %}
+        <span class="text-success">Present</span> — Phishing protection policy enforced.
+      {% else %}
+        <span class="text-danger">Missing</span> — No policy to stop fraudulent emails.
+      {% endif %}
+    </p>
+
+    {% if dns.subdomains %}
+    <hr>
+    <h6>Discovered Subdomains</h6>
+    <ul>
+      {% for sub in dns.subdomains %}
+        <li>{{ sub }} — May expose hidden environments (dev/test/api)</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <p class="text-warning mt-2">
+      DNS information assists attackers during the reconnaissance phase of cyber attacks.
+    </p>
+  </div>
+
+
+  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+      <h5>SSL/TLS Security Status</h5>
+      {% if ssl.error %}
+        <p class="text-danger">SSL not available — data transmission is NOT encrypted.</p>
+      {% else %}
+        <p><b>TLS Version:</b> {{ ssl.tls_version }}</p>
+        <p><b>Certificate Expiry:</b> {{ ssl.expires }}</p>
+      {% endif %}
+    </div>
+
+    <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+    <h5>Remote Access Exposure</h5>
+    {% if ssh.open %}
+      <p class="text-warning">SSH is publicly accessible → brute force risk.</p>
+    {% else %}
+      <p class="text-success">SSH not exposed.</p>
+    {% endif %}
+  </div>
+
+  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+    <h5>Security Findings & Impact</h5>
+    <table class="table table-dark table-striped">
+      <thead>
+        <tr>
+          <th>Issue</th>
+          <th>Severity</th>
+          <th>Possible Attack</th>
+          <th>Impact</th>
+          <th>Recommendation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in findings %}
+        <tr>
+          <td>{{ f.issue }}</td>
+          <td class="sev-{{ f.severity|lower }}">{{ f.severity }}</td>
+          <td>{{ f.attack }}</td>
+          <td>{{ f.impact }}</td>
+          <td>{{ f.fix }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- HTTP Security Headers -->
+<div class="card bg-dark text-light shadow-sm p-4 mb-4">
+  <h5>HTTP Security Analysis</h5>
+
+  <div class="row">
+    <div class="col-md-6">
+      <p><strong>Server:</strong> {{ http.server }}</p>
+      <p><strong>HTTPS Redirect:</strong> 
+        {% if http.https_redirect %}
+          <span class="text-success">Yes</span>
+        {% else %}
+          <span class="text-danger">No</span>
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="col-md-6">
+      <p><strong>Security Headers Present:</strong></p>
+      <ul>
+        {% for h in http.present %}
+          <li class="text-success">{{ h }}</li>
+        {% endfor %}
+      </ul>
+
+      <p><strong>Missing Security Headers:</strong></p>
+      <ul>
+        {% for h in http.missing %}
+          <li class="text-danger">{{ h }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+
 </div>
 
 <script>

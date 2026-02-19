@@ -5,6 +5,6 @@ def ssh_check(target):
         s = socket.create_connection((target, 22), timeout=3)
         banner = s.recv(1024).decode(errors='ignore')
         s.close()
-        return banner
+        return {"open": True, "banner": banner}
     except:
-        return 'SSH not reachable'
+        return {"open": False}
