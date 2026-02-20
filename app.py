@@ -4,7 +4,7 @@ from scanner.port_scan import scan_ports
 from scanner.dns_enum import dns_enum
 from scanner.ssl_tls import ssl_scan
 from scanner.ssh_check import ssh_check
-from risk_engine.rules import apply_rules, RULES
+from risk_engine.rules import apply_rules
 from risk_engine.scorer import calculate_risk_score
 from scanner.http_headers import check_http_security
 import socket
@@ -66,6 +66,12 @@ def dashboard(target):
     findings = apply_rules(scan_results)
     risk = calculate_risk_score(findings)
 
+    # Risk contribution by module
+    module_dist = {}
+    for f in findings:
+        module = f.get("module", "other")
+        module_dist[module] = module_dist.get(module, 0) + f["weight"]
+
     port_table = []
     for p in scan_results["ports"]:
         service = scan_results["services"].get(p, "unknown")
@@ -101,6 +107,7 @@ def dashboard(target):
         scan_summary=summary,
         scan_ports=port_table,
         service_dist=service_dist,
+        module_dist=module_dist,
         dns=scan_results["dns"],
         ssl=scan_results["ssl"],
         ssh=scan_results["ssh"],

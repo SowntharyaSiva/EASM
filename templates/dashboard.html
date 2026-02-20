@@ -1,22 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
+
+<style>
+.chart-wrapper {
+    position: relative;
+    height: 320px;
+    width: 100%;
+}
+</style>
+
 <div class="container my-5">
 
   <h2 class="mb-4">Scan Dashboard - {{ scan_target }}</h2>
 
-  <!-- Summary Cards -->
+  <!-- ================= SUMMARY CARDS ================= -->
   <div class="row mb-4">
     {% for key, value in scan_summary.items() %}
-      <div class="col-md-3 mb-3">
-        <div class="card bg-dark text-light shadow-sm p-3">
-          <h5>{{ key.replace('_',' ').title() }}</h5>
-          <p class="display-6">{{ value }}</p>
-        </div>
+    <div class="col-md-3 mb-3">
+      <div class="card bg-dark text-light shadow-sm p-3">
+        <h5>{{ key.replace('_',' ').title() }}</h5>
+        <p class="display-6">{{ value }}</p>
       </div>
+    </div>
     {% endfor %}
   </div>
 
-  <!-- Per-port Table -->
+  <!-- ================= PORT TABLE ================= -->
   <div class="card bg-dark text-light shadow-sm p-4 mb-4">
     <h5>Port Details</h5>
     <table class="table table-dark table-striped table-hover">
@@ -45,103 +54,98 @@
     </table>
   </div>
 
-  <!-- Charts -->
+  <!-- ================= CHARTS ================= -->
   <div class="row">
     <div class="col-md-6 mb-4">
-      <div class="card bg-dark text-light shadow-sm p-3 chart-card">
-        <h5>Open Ports by Severity</h5>
-        <canvas id="openPortsChart"></canvas>
+      <div class="card bg-dark text-light shadow-sm p-3">
+        <h5>Risk Distribution by Severity</h5>
+        <div class="chart-wrapper">
+          <canvas id="severityChart"></canvas>
+        </div>
       </div>
     </div>
+
     <div class="col-md-6 mb-4">
-      <div class="card bg-dark text-light shadow-sm p-3 chart-card">
-        <h5>Service Distribution</h5>
-        <canvas id="serviceChart"></canvas>
+      <div class="card bg-dark text-light shadow-sm p-3">
+        <h5>Risk Contribution by Module</h5>
+        <div class="chart-wrapper">
+          <canvas id="moduleChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+  <!-- ================= DNS ================= -->
+<div class="card bg-dark text-light shadow-sm p-4 mb-4">
     <h5>DNS Exposure Analysis</h5>
 
     <ul>
       <li>
-        <b>Web Servers (A Records):</b> {{ dns.A|length }}
+        <b>A Records:</b> {{ dns.A|length }}
         {% if dns.A|length > 0 %}
-          — Public servers are identifiable → attackers can target hosting infrastructure.
+          — Public web infrastructure exposed
         {% else %}
-          — No A records found.
+          — No public web servers detected
         {% endif %}
       </li>
 
       <li>
-        <b>Mail Servers (MX Records):</b> {{ dns.MX|length }}
+        <b>MX Records:</b> {{ dns.MX|length }}
         {% if dns.MX|length > 0 %}
-          — Email infrastructure visible → phishing & spam attack surface.
+          — Mail servers publicly visible
         {% else %}
-          — No mail servers publicly exposed.
+          — No mail servers exposed
         {% endif %}
       </li>
 
       <li>
-        <b>Name Servers (NS Records):</b> {{ dns.NS|length }}
+        <b>NS Records:</b> {{ dns.NS|length }}
         {% if dns.NS|length > 0 %}
-          — DNS infrastructure exposed → helps attackers map network.
+          — DNS infrastructure identifiable
         {% else %}
-          — No NS records retrieved.
+          — No name server records retrieved
         {% endif %}
       </li>
     </ul>
 
     <hr>
 
-    <h6>Email Security Protection</h6>
-
     <p>
-      <b>SPF Record:</b>
+      <b>SPF:</b>
       {% if dns.email_security.spf %}
-        <span class="text-success">Present</span> — Domain restricts who can send emails (reduces spoofing).
+        <span class="text-success">Present</span>
+        — Reduces email spoofing risk
       {% else %}
-        <span class="text-danger">Missing</span> — Attackers can forge emails from this domain.
+        <span class="text-danger">Missing</span>
+        — Domain vulnerable to spoofed emails
       {% endif %}
     </p>
 
     <p>
-      <b>DMARC Policy:</b>
+      <b>DMARC:</b>
       {% if dns.email_security.dmarc %}
-        <span class="text-success">Present</span> — Phishing protection policy enforced.
+        <span class="text-success">Present</span>
+        — Email authentication policy enforced
       {% else %}
-        <span class="text-danger">Missing</span> — No policy to stop fraudulent emails.
+        <span class="text-danger">Missing</span>
+        — No protection against phishing misuse
       {% endif %}
     </p>
 
-    {% if dns.subdomains %}
-    <hr>
-    <h6>Discovered Subdomains</h6>
-    <ul>
-      {% for sub in dns.subdomains %}
-        <li>{{ sub }} — May expose hidden environments (dev/test/api)</li>
-      {% endfor %}
-    </ul>
+  </div>
+  <!-- ================= SSL ================= -->
+  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+    <h5>SSL/TLS Security Status</h5>
+    {% if ssl.error %}
+      <p class="text-danger">SSL not available — data transmission is NOT encrypted.</p>
+    {% else %}
+      <p><b>TLS Version:</b> {{ ssl.tls_version }}</p>
+      <p><b>Certificate Expiry:</b> {{ ssl.expires }}</p>
     {% endif %}
-
-    <p class="text-warning mt-2">
-      DNS information assists attackers during the reconnaissance phase of cyber attacks.
-    </p>
   </div>
 
-
+  <!-- ================= SSH ================= -->
   <div class="card bg-dark text-light shadow-sm p-4 mb-4">
-      <h5>SSL/TLS Security Status</h5>
-      {% if ssl.error %}
-        <p class="text-danger">SSL not available — data transmission is NOT encrypted.</p>
-      {% else %}
-        <p><b>TLS Version:</b> {{ ssl.tls_version }}</p>
-        <p><b>Certificate Expiry:</b> {{ ssl.expires }}</p>
-      {% endif %}
-    </div>
-
-    <div class="card bg-dark text-light shadow-sm p-4 mb-4">
     <h5>Remote Access Exposure</h5>
     {% if ssh.open %}
       <p class="text-warning">SSH is publicly accessible → brute force risk.</p>
@@ -150,6 +154,35 @@
     {% endif %}
   </div>
 
+  <!-- ================= HTTP ================= -->
+  <div class="card bg-dark text-light shadow-sm p-4 mb-4">
+    <h5>HTTP Security Analysis</h5>
+
+    <div class="row">
+      <div class="col-md-6">
+        <p><strong>Server:</strong> {{ http.server }}</p>
+
+        <p><strong>HTTPS Redirect:</strong>
+          {% if http.https_redirect %}
+            <span class="text-success">Yes</span>
+          {% else %}
+            <span class="text-danger">No</span>
+          {% endif %}
+        </p>
+      </div>
+
+      <div class="col-md-6">
+        <p><strong>Missing Security Headers:</strong></p>
+        <ul>
+          {% for h in http.missing %}
+            <li class="text-danger">{{ h }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FINDINGS ================= -->
   <div class="card bg-dark text-light shadow-sm p-4 mb-4">
     <h5>Security Findings & Impact</h5>
     <table class="table table-dark table-striped">
@@ -176,54 +209,62 @@
     </table>
   </div>
 
-  <!-- HTTP Security Headers -->
-<div class="card bg-dark text-light shadow-sm p-4 mb-4">
-  <h5>HTTP Security Analysis</h5>
-
-  <div class="row">
-    <div class="col-md-6">
-      <p><strong>Server:</strong> {{ http.server }}</p>
-      <p><strong>HTTPS Redirect:</strong> 
-        {% if http.https_redirect %}
-          <span class="text-success">Yes</span>
-        {% else %}
-          <span class="text-danger">No</span>
-        {% endif %}
-      </p>
-    </div>
-
-    <div class="col-md-6">
-      <p><strong>Security Headers Present:</strong></p>
-      <ul>
-        {% for h in http.present %}
-          <li class="text-success">{{ h }}</li>
-        {% endfor %}
-      </ul>
-
-      <p><strong>Missing Security Headers:</strong></p>
-      <ul>
-        {% for h in http.missing %}
-          <li class="text-danger">{{ h }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
 </div>
 
-
-</div>
-
+<!-- ================= CHART SCRIPT ================= -->
 <script>
-const openPortsData = {
-    labels: ["Critical","High","Medium","Low"],
-    datasets:[{ label:'Ports', data:[{{ scan_summary.critical }}, {{ scan_summary.high }}, {{ scan_summary.medium }}, {{ scan_summary.low }}], backgroundColor:['#ef4444','#f97316','#eab308','#22c55e']}]
-};
-new Chart(document.getElementById('openPortsChart'), { type:'bar', data:openPortsData, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ color:'#e2e8f0' } }, x:{ ticks:{ color:'#e2e8f0' } } }, plugins:{ legend:{ labels:{ color:'#e2e8f0' } } } } });
 
-const serviceData = {
-    labels: [{% for s in service_dist.keys() %}"{{ s }}",{% endfor %}],
-    datasets:[{ data:[{% for s in service_dist.values() %}{{ s }},{% endfor %}], backgroundColor:['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444']}]
+/* Severity Chart */
+const severityData = {
+  labels: ["Critical","High","Medium","Low"],
+  datasets: [{
+    data: [
+      {{ scan_summary.get('critical',0) }},
+      {{ scan_summary.get('high',0) }},
+      {{ scan_summary.get('medium',0) }},
+      {{ scan_summary.get('low',0) }}
+    ],
+    backgroundColor:['#ef4444','#f97316','#eab308','#22c55e']
+  }]
 };
-new Chart(document.getElementById('serviceChart'), { type:'pie', data:serviceData, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#e2e8f0', boxWidth:20, padding:15 } } } } });
+
+new Chart(document.getElementById('severityChart'), {
+  type: 'bar',
+  data: severityData,
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
+
+
+/* Module Contribution Chart */
+const moduleDist = {{ module_dist|tojson }};
+
+if (Object.keys(moduleDist).length > 0) {
+
+  const moduleData = {
+    labels: Object.keys(moduleDist),
+    datasets: [{
+      data: Object.values(moduleDist),
+      backgroundColor:['#ef4444','#f97316','#eab308','#3b82f6','#10b981']
+    }]
+  };
+
+  new Chart(document.getElementById('moduleChart'), {
+    type: 'doughnut',
+    data: moduleData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%'
+    }
+  });
+}
+
 </script>
+
 {% endblock %}

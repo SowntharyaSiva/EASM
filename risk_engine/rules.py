@@ -1,18 +1,31 @@
-# ================= RULE DEFINITIONS =================
-RULES = [
-    {"id": "R1", "name": "Open Ports", "severity": "LOW", "score": 10},
-    {"id": "R2", "name": "Insecure Service (FTP/Telnet)", "severity": "CRITICAL", "score": 40},
-    {"id": "R3", "name": "Weak TLS Version", "severity": "MEDIUM", "score": 15},
-    {"id": "R4", "name": "Invalid SSL", "severity": "MEDIUM", "score": 20},
-    {"id": "R5", "name": "SSH Exposed", "severity": "MEDIUM", "score": 15},
-    {"id": "R6", "name": "Missing HTTP Security Headers", "severity": "HIGH", "score": 25},
-    {"id": "R7", "name": "Missing SPF Record", "severity": "MEDIUM", "score": 15},
-    {"id": "R8", "name": "Missing DMARC Policy", "severity": "MEDIUM", "score": 15},
+# ================= MODULE WEIGHTS =================
+MODULE_WEIGHTS = {
+    "network": 1.2,
+    "ssl": 1.1,
+    "ssh": 1.2,
+    "http": 1.0,
+    "dns": 0.8
+}
 
-]
+ATTACK_MAP = {
+    "NET-TELNET": ("Credential Theft", "Plaintext credentials can be intercepted"),
+    "NET-FTP": ("Credential Theft", "FTP transmits credentials in plaintext"),
+    "NET-RDP": ("Remote Compromise", "RDP brute-force or exploit risk"),
+    "NET-SSH": ("Brute Force Attack", "SSH login attempts can compromise system"),
+    "NET-DB": ("Data Breach", "Database exposure may leak sensitive data"),
+    "NET-HTTP": ("MITM Attack", "Unencrypted traffic can be intercepted"),
+    "SSL-INVALID": ("Spoofing / MITM", "Users may trust fake or compromised site"),
+    "SSL-WEAK": ("MITM Attack", "Weak encryption can be broken"),
+    "SSH-BRUTE": ("Brute Force Attack", "Repeated login attempts may succeed"),
+    "HTTP-HEADERS": ("XSS / Clickjacking", "Browser-based attacks possible"),
+    "DNS-SPF": ("Email Spoofing", "Attackers can forge domain emails"),
+    "DNS-DMARC": ("Phishing Campaign", "No policy to block fraudulent emails"),
+}
+
 
 
 # ================= RULE ENGINE =================
+
 def apply_rules(scan):
     findings = []
 
@@ -20,69 +33,163 @@ def apply_rules(scan):
     services = scan.get("services", {})
     ssl = scan.get("ssl", {})
     ssh = scan.get("ssh", {})
-
-    # R1 — Open Ports
-    if ports:
-        findings.append(_make("R1", f"{len(ports)} ports exposed"))
-
-    # R2 — Insecure Services
-    for port, service in services.items():
-        if service in ["ftp", "telnet"]:
-            findings.append(_make("R2", f"Insecure service {service} on port {port}"))
-
-    # R3 — Weak TLS
-    if ssl.get("tls_version") in ["TLSv1", "TLSv1.1"]:
-        findings.append(_make("R3", "Weak TLS version detected"))
-
-    # R4 — Invalid SSL
-    if ssl.get("error"):
-        findings.append(_make("R4", "Invalid or missing SSL"))
-
-    # R5 — SSH Exposure
-    if ssh.get("open"):
-        findings.append(_make("R5", "SSH exposed to internet"))
-
     http = scan.get("http", {})
     dns = scan.get("dns", {})
+    public_ip = True   # assume public since private IPs blocked earlier
 
-    # Missing security headers
+    # ================= NETWORK RULES =================
+    for port, service in services.items():
+
+        # TELNET
+        if port == 23:
+            findings.append(_make(
+                module="network",
+                rule_id="NET-TELNET",
+                issue=f"Telnet exposed on port {port}",
+                severity="CRITICAL",
+                base_score=50,
+                fix="Disable Telnet service immediately"
+            ))
+
+        # FTP
+        elif port == 21:
+            findings.append(_make(
+                module="network",
+                rule_id="NET-FTP",
+                issue=f"FTP exposed on port {port}",
+                severity="CRITICAL",
+                base_score=45,
+                fix="Disable FTP or enforce FTPS"
+            ))
+
+        # RDP
+        elif port == 3389:
+            findings.append(_make(
+                module="network",
+                rule_id="NET-RDP",
+                issue=f"RDP exposed on port {port}",
+                severity="CRITICAL",
+                base_score=45,
+                fix="Restrict RDP via VPN/firewall"
+            ))
+
+        # SSH Public
+        elif port == 22 and public_ip:
+            findings.append(_make(
+                module="network",
+                rule_id="NET-SSH",
+                issue="SSH exposed publicly",
+                severity="HIGH",
+                base_score=30,
+                fix="Restrict SSH via firewall or VPN"
+            ))
+
+        # Database Exposure
+        elif port in [3306, 5432, 27017]:
+            findings.append(_make(
+                module="network",
+                rule_id="NET-DB",
+                issue=f"Database port {port} exposed",
+                severity="HIGH",
+                base_score=35,
+                fix="Restrict database access to internal network"
+            ))
+
+        # HTTP without HTTPS
+        elif port == 80 and 443 not in ports:
+            findings.append(_make(
+                module="network",
+                rule_id="NET-HTTP",
+                issue="HTTP open without HTTPS",
+                severity="MEDIUM",
+                base_score=20,
+                fix="Enable HTTPS"
+            ))
+
+    # ================= SSL RULES =================
+    if ssl.get("error"):
+        findings.append(_make(
+            module="ssl",
+            rule_id="SSL-INVALID",
+            issue="Invalid or expired SSL certificate",
+            severity="CRITICAL",
+            base_score=40,
+            fix="Install valid SSL certificate"
+        ))
+
+    if ssl.get("tls_version") in ["TLSv1", "TLSv1.1"]:
+        findings.append(_make(
+            module="ssl",
+            rule_id="SSL-WEAK",
+            issue="Weak TLS version detected",
+            severity="HIGH",
+            base_score=25,
+            fix="Upgrade to TLS 1.2 or higher"
+        ))
+
+    # ================= SSH RULE =================
+    if ssh.get("open") and public_ip:
+        findings.append(_make(
+            module="ssh",
+            rule_id="SSH-BRUTE",
+            issue="SSH brute-force risk",
+            severity="HIGH",
+            base_score=25,
+            fix="Enable rate limiting and key-based authentication"
+        ))
+
+    # ================= HTTP RULE =================
     if len(http.get("missing", [])) >= 3:
-        findings.append(_make("R6", "Missing important HTTP security headers"))
+        findings.append(_make(
+            module="http",
+            rule_id="HTTP-HEADERS",
+            issue="Missing critical HTTP security headers",
+            severity="MEDIUM",
+            base_score=20,
+            fix="Enable CSP, HSTS, X-Frame-Options"
+        ))
 
-    # No SPF/DMARC
-    if not dns.get("email_security", {}).get("spf"):
-        findings.append(_make("R7", "Missing SPF record — email spoofing risk"))
+    # ================= DNS RULES =================
+    email_sec = dns.get("email_security", {})
 
-    if not dns.get("email_security", {}).get("dmarc"):
-        findings.append(_make("R8", "Missing DMARC policy"))
+    if not email_sec.get("spf"):
+        findings.append(_make(
+            module="dns",
+            rule_id="DNS-SPF",
+            issue="Missing SPF record",
+            severity="MEDIUM",
+            base_score=15,
+            fix="Configure SPF record"
+        ))
 
+    if not email_sec.get("dmarc"):
+        findings.append(_make(
+            module="dns",
+            rule_id="DNS-DMARC",
+            issue="Missing DMARC policy",
+            severity="MEDIUM",
+            base_score=15,
+            fix="Implement DMARC policy"
+        ))
 
     return findings
 
 
 # ================= HELPER =================
-def _make(rule_id, issue):
-    rule = next(r for r in RULES if r["id"] == rule_id)
+def _make(module, rule_id, issue, severity, base_score, fix):
+    multiplier = MODULE_WEIGHTS.get(module, 1.0)
+    adjusted_score = base_score * multiplier
 
-    ATTACK_MAP = {
-        "R1": ("Reconnaissance", "More entry points for attackers", "Close unused ports"),
-        "R2": ("Credential Theft", "Plaintext credentials exposed", "Disable FTP/Telnet"),
-        "R3": ("MITM Attack", "Encrypted traffic can be intercepted", "Upgrade TLS to 1.2+"),
-        "R4": ("Spoofing Risk", "Users may trust fake site", "Install valid SSL"),
-        "R5": ("Brute Force", "Remote access compromise risk", "Restrict SSH via firewall"),
-        "R6": ("Web Exploitation", "Browser attacks like XSS & Clickjacking", "Enable CSP, HSTS, X-Frame"),
-        "R7": ("Email Spoofing", "Attackers can impersonate domain emails", "Configure SPF"),
-        "R8": ("Phishing Campaigns", "Emails lack DMARC protection", "Implement DMARC policy"),
-    }
-
-    attack, impact, fix = ATTACK_MAP.get(rule_id, ("Unknown", "Unknown", "Review"))
+    attack, impact = ATTACK_MAP.get(rule_id, ("Unknown", "Security risk detected"))
 
     return {
-        "rule_id": rule["id"],
+        "module": module,
+        "rule_id": rule_id,
         "issue": issue,
-        "severity": rule["severity"],
-        "weight": rule["score"],
+        "severity": severity,
+        "weight": round(adjusted_score, 2),
         "attack": attack,
         "impact": impact,
         "fix": fix
     }
+
