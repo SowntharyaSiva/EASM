@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Scan Report</title>
+    <style>
+        body { font-family: Arial; }
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #000; padding: 6px; font-size: 12px; }
+        th { background: #eee; }
+    </style>
+</head>
+<body>
+
+<h1>External Attack Surface Report</h1>
+<h2>Target: {{ scan_target }}</h2>
+
+<h2>Risk Summary</h2>
+<p>Total Score: {{ scan_summary.total_score }}</p>
+<p>Risk Level: {{ scan_summary.risk_level }}</p>
+<p>Critical: {{ scan_summary.critical }}</p>
+<p>High: {{ scan_summary.high }}</p>
+<p>Medium: {{ scan_summary.medium }}</p>
+<p>Low: {{ scan_summary.low }}</p>
+
+<h2>Open Ports</h2>
+<table>
+<tr><th>Port</th><th>Service</th></tr>
+{% for p in scan_ports %}
+<tr>
+<td>{{ p }}</td>
+<td>{{ services[p] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>DNS Records</h2>
+<table>
+<tr><th>Type</th><th>Values</th></tr>
+{% for rt in ["A","AAAA","MX","NS","TXT"] %}
+<tr>
+<td>{{ rt }}</td>
+<td>
+{% for v in dns[rt] %}
+{{ v }}<br>
+{% endfor %}
+</td>
+</tr>
+{% endfor %}
+</table>
+
+<p>Reverse PTR: {{ dns.reverse_ptr }}</p>
+<p>SPF: {{ dns.email_security.spf }}</p>
+<p>DMARC: {{ dns.email_security.dmarc }}</p>
+
+<h2>SSL/TLS</h2>
+<p>TLS Version: {{ ssl.tls_version }}</p>
+<p>Cipher: {{ ssl.cipher }}</p>
+<p>Expires: {{ ssl.expires }}</p>
+
+<h2>Security Findings</h2>
+<table>
+<tr><th>Issue</th><th>Severity</th><th>Impact</th></tr>
+{% for f in findings %}
+<tr>
+<td>{{ f.issue }}</td>
+<td>{{ f.severity }}</td>
+<td>{{ f.impact }}</td>
+</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>

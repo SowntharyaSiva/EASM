@@ -45,39 +45,47 @@ def dashboard(target):
     if not is_valid_target(target):
         return "Invalid target"
 
-    scan_results = {
-        "ports": [],
-        "services": {},
-        "dns": {},
-        "ssl": {},
-        "ssh": {}
-    }
-
-    #scan_results["ports"], scan_results["services"] = scan_ports(target)
-
     resolved_ip = resolve_target(target)
 
-    scan_results["ports"], scan_results["services"] = scan_ports(resolved_ip)
-    scan_results["dns"] = dns_enum(target)
-    scan_results["ssl"] = ssl_scan(target)
-    scan_results["ssh"] = ssh_check(target)
-    scan_results["http"] = check_http_security(target)
+    if not resolved_ip:
+        return "Unable to resolve target"
 
+    # ================= SCAN EXECUTION =================
+    ports, services = scan_ports(resolved_ip)
+
+    scan_results = {
+        "ports": ports,
+        "services": services,
+        "dns": dns_enum(target),
+        "ssl": ssl_scan(target),
+        "ssh": ssh_check(target),
+        "http": check_http_security(target)  # Keep your original module
+    }
+
+    # ================= RULE ENGINE =================
     findings = apply_rules(scan_results)
     risk = calculate_risk_score(findings)
 
-    # Risk contribution by module
+    # ================= MODULE RISK CONTRIBUTION =================
     module_dist = {}
     for f in findings:
         module = f.get("module", "other")
-        module_dist[module] = module_dist.get(module, 0) + f["weight"]
+        weight = f.get("weight", 0)
+        module_dist[module] = module_dist.get(module, 0) + weight
 
+    # ================= PORT TABLE =================
     port_table = []
-    for p in scan_results["ports"]:
-        service = scan_results["services"].get(p, "unknown")
+    for p in ports:
+        service = services.get(p, "unknown")
+
+        # Keep your service-based severity logic
         sev = "LOW"
         if service in ["ftp", "telnet"]:
             sev = "CRITICAL"
+        elif service in ["ssh"]:
+            sev = "HIGH"
+        elif service in ["http"]:
+            sev = "MEDIUM"
 
         port_table.append({
             "number": p,
@@ -88,6 +96,7 @@ def dashboard(target):
             "notes": ""
         })
 
+    # ================= SUMMARY =================
     summary = {
         "total_score": risk["total_score"],
         "risk_level": risk["risk_level"],
@@ -97,8 +106,9 @@ def dashboard(target):
         "low": sum(1 for f in findings if f["severity"] == "LOW")
     }
 
+    # ================= SERVICE DISTRIBUTION =================
     service_dist = {}
-    for s in scan_results["services"].values():
+    for s in services.values():
         service_dist[s] = service_dist.get(s, 0) + 1
 
     return render_template(
@@ -114,14 +124,11 @@ def dashboard(target):
         findings=findings,
         http=scan_results["http"],
     )
-
-
 # ================= RULES PAGE =================
 @app.route("/rules")
 def rules():
     from risk_engine.rules import RULES
     return render_template("rules.html", rules=RULES)
-
 
 if __name__ == "__main__":
     app.run(debug=True)
